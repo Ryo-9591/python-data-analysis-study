@@ -79,6 +79,28 @@ C = np.concatenate((A, B), axis=0)
 #  [ 9 10 11 12]]
 ```
 
+### 配列の結合と出力
+
+```python
+import numpy as np
+
+A = np.full((2, 2), 1)  # 2×2で全て1の配列
+B = np.zeros((2, 2))     # 2×2で全て0の配列
+
+# axis=0で結合（縦に積む）
+result = np.concatenate([A, B], axis=0)
+# 結果:
+# array([[1., 1.],
+#        [1., 1.],
+#        [0., 0.],
+#        [0., 0.]])
+```
+
+**ポイント：**
+- `np.full(shape, value)`: 指定形状で指定値で埋める
+- `np.zeros(shape)`: 指定形状で0で埋める
+- 異なるデータ型を結合すると、広い型（ここでは浮動小数点）に統一される
+
 ### splitによる分割
 
 ```python
@@ -88,20 +110,51 @@ first, second = np.split(a, [2], axis=1)
 # axis=1で分割 = 縦に切る（列方向に切り込み）
 ```
 
-### ravel()とコピー/ビューの関係
+### hsplitによる水平分割
 
 ```python
 import numpy as np
-A = np.array([[1,2,3],[4,5,6]])
-B = A.ravel()  # 通常は参照（ビュー）
-A[0,:]=0
-# Bは通常 [0, 0, 0, 4, 5, 6] になる（参照の場合）
-# 問題によってはコピーとして扱われ [1, 2, 3, 4, 5, 6] となる
+
+A = np.eye(4)  # 4×4の単位行列
+first, second = np.hsplit(A, [2])  # インデックス2の前で分割
+
+# first: 最初の2列（インデックス0, 1）
+# 結果:
+# array([[1., 0.],
+#        [0., 1.],
+#        [0., 0.],
+#        [0., 0.]])
+
+# second: 残りの2列（インデックス2, 3）
 ```
 
 **ポイント：**
-- `ravel()` は通常**参照（ビュー）**を返す
-- 参照の場合は元配列の変更が反映される
+- `np.hsplit()`: 水平方向（列方向）に分割
+- `np.vsplit()`: 垂直方向（行方向）に分割
+- `np.split(..., axis=1)`: `hsplit()` と同等
+- `np.split(..., axis=0)`: `vsplit()` と同等
+
+### ravel()とflatten()の違い
+
+```python
+import numpy as np
+A = np.array([[1, 2, 3], [4, 5, 6]])
+
+# ravel(): 通常は参照（ビュー）を返す
+B = A.ravel()
+A[0, :] = 0
+# Bは通常 [0, 0, 0, 4, 5, 6] になる（参照の場合）
+
+# flatten(): 必ずコピーを返す
+C = A.flatten()
+A[1, :] = 0
+# Cは [1, 2, 3, 4, 5, 6] のまま（コピーのため）
+# C[-1] = 6 が返される
+```
+
+**ポイント：**
+- `ravel()`: 通常**参照（ビュー）**を返す → 元配列の変更が反映される
+- `flatten()`: **必ずコピー**を返す → 元配列の変更が反映されない
 - 確実にコピーしたい場合は `flatten()` を使用
 
 ### meshgridとグリッド生成
@@ -186,6 +239,67 @@ df["カラム名"].resample("ME").mean()
 - `W-WED`: 水曜日を週末とする週単位
 - `ME`: Month End（月末）
 
+### DataFrameへの列追加
+
+```python
+import pandas as pd
+
+# 方法1: 直接代入（推奨）
+df["増減値"] = df["終値"] - df["始値"]
+
+# 方法2: locを使用
+df.loc[:, "増減値"] = df.loc[:, "終値"] - df.loc[:, "始値"]
+
+# 方法3: ilocを使用（インデックス指定）
+df.loc[:, "増減値"] = df.iloc[:, 2] - df.iloc[:, 1]
+
+# ❌ 間違い: リスト同士の引き算はできない
+# df.loc[:, "増減値"] = df.loc[["終値"] - ["始値"]]  # エラー
+```
+
+### 複数条件でのフィルタリング
+
+```python
+# AND条件（両方の条件を満たす）
+df[(df["A"] == 3000) & (df["B"] == 3000)]
+
+# OR条件（どちらかの条件を満たす）
+df[(df["A"] == 3000) | (df["B"] == 3000)]
+```
+
+**重要：**
+- Pythonの `and`, `or` は使えない
+- Pandas/NumPyでは `&` (AND), `|` (OR), `~` (NOT) を使用
+- 条件は括弧 `()` で囲む必要がある
+
+### 時系列データの可視化
+
+```python
+import matplotlib.pyplot as plt
+
+# 日付ごとの推移を折れ線グラフで表示
+df["利用回数"].plot()
+plt.show()
+```
+
+**ポイント：**
+- Pandas Seriesの `.plot()` はデフォルトで折れ線グラフ
+- Seriesのインデックス（日付）が自動的にX軸になる
+- 時系列データの推移には折れ線グラフが適している
+
+### datetime型への変換
+
+```python
+# オブジェクト型（文字列）をdatetime型に変換
+df["Date"] = pd.to_datetime(df["Date"])
+```
+
+**間違いやすいポイント：**
+- ❌ `pd.datetime()` は存在しない
+- ❌ `pd.to_date()` は存在しない（正しくは `pd.to_datetime()`）
+- ❌ `astype(datetime)` は推奨されない（形式が複雑な場合は解析できない）
+- ✅ `pd.to_datetime()` が最も柔軟で推奨される方法
+
 ---
 
 ## 機械学習
@@ -238,6 +352,27 @@ log_proba = model.predict_log_proba(X_test)
 - ❌ 情報利得 (Information Gain) → これは不純度ではなく、不純度の減少量
 
 **注：** 情報利得 = 分割前の不純度 - 分割後の不純度
+
+### DecisionTreeClassifierの引数
+
+```python
+from sklearn.tree import DecisionTreeClassifier
+
+model = DecisionTreeClassifier(
+    max_depth=5,           # 木の深さ（指定可能）
+    max_leaf_nodes=10,     # 葉の数（指定可能）
+    criterion='gini'      # 不純度の指標（指定可能）
+)
+```
+
+**指定可能な引数：**
+- ✅ `max_depth`: 木の深さ
+- ✅ `max_leaf_nodes`: 葉の数
+- ✅ `criterion`: 不純度の指標（'gini', 'entropy', 'log_loss'）
+
+**指定できない引数：**
+- ❌ `n_estimators`（木の数）: DecisionTreeClassifierは**単一の木**を構築するため
+  - 複数の木を使う場合は `RandomForestClassifier` や `GradientBoostingClassifier` を使用
 
 ### 階層的クラスタリング
 
